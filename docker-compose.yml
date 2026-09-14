@@ -1,0 +1,50 @@
+services:
+  mysql:
+    image: mariadb:11
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      - MYSQL_DATABASE=employeehub
+      - MYSQL_USER=employeehub
+      - MYSQL_PASSWORD=${DB_PASSWORD:-change_me_db_password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  hris:
+    build: .
+    ports:
+      - "4000:4000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=employeehub
+      - DB_PASSWORD=${DB_PASSWORD:-change_me_db_password}
+      - DB_NAME=employeehub
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-change_me_access_secret}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-change_me_refresh_secret}
+      - JWT_ACCESS_EXPIRES=15m
+      - JWT_REFRESH_EXPIRES=7d
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:4000}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:4000}
+    volumes:
+      - hris_uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  hris_uploads:

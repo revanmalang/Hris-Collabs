@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EmployeeHub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">Employee<span class="dot">Hub</span></div>
+      <nav class="nav-group" id="nav-group"></nav>
+      <div class="sidebar-foot" id="sidebar-foot">© 2026 Moch Revano Budiansyah</div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menu-toggle" aria-label="Buka menu">☰</button>
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="search">
+          <span class="ic">🔍</span>
+          <input id="global-search" placeholder="Cari karyawan, departemen…" autocomplete="off" />
+          <div id="search-results" class="card hidden" style="position:absolute;top:36px;left:0;right:0;z-index:50;padding:6px;"></div>
+        </div>
+        <div class="topbar-right">
+          <span class="live-pulse offline" id="live-pulse"><span class="dot"></span> <span id="live-pulse-label">Menghubungkan…</span></span>
+          <button class="icon-btn" id="notif-btn" title="Notifikasi" aria-label="Notifikasi">
+            🔔<span class="badge-dot hidden" id="notif-count">0</span>
+          </button>
+          <div class="user-chip" id="user-chip">
+            <div class="avatar" id="user-avatar">?</div>
+            <div style="display:flex;flex-direction:column;line-height:1.2;">
+              <strong id="user-name" style="font-size:12.5px;">…</strong>
+              <span class="muted" id="user-role" style="font-size:11px;">…</span>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="content" id="content">
+        <div class="empty-state">Memuat…</div>
+      </main>
+    </div>
+  </div>
+
+  <div id="drawer-root"></div>
+  <div id="modal-root"></div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/socket.js"></script>
+  <script src="/js/sections/dashboard.js"></script>
+  <script src="/js/sections/employees.js"></script>
+  <script src="/js/sections/attendance.js"></script>
+  <script src="/js/sections/leave.js"></script>
+  <script src="/js/sections/overtime.js"></script>
+  <script src="/js/sections/org.js"></script>
+  <script src="/js/sections/announcements.js"></script>
+  <script src="/js/sections/reports.js"></script>
+  <script src="/js/sections/auditlog.js"></script>
+  <script src="/js/sections/settings.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

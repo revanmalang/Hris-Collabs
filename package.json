@@ -1,0 +1,47 @@
+{
+  "name": "employeehub-hris",
+  "version": "0.1.0",
+  "description": "EmployeeHub - Employee Identity Management & Realtime Attendance HRIS",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "db:migrate": "node src/db/migrate.js",
+    "seed": "node src/db/seed.js",
+    "pretest": "DB_NAME=employeehub_test node src/db/migrate.js",
+    "test": "jest --runInBand --forceExit",
+    "setup": "npm install && npm run db:migrate && npm run seed"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "csrf-csrf": "^3.0.6",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "json2csv": "^6.0.0-alpha.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.24.2",
+    "nodemailer": "^6.9.14",
+    "otplib": "^12.0.1",
+    "pdfkit": "^0.15.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.4",
+    "socket.io-client": "^4.8.3",
+    "supertest": "^7.0.0"
+  }
+}

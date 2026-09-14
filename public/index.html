@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EmployeeHub — Masuk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="auth-shell">
+    <div class="auth-visual">
+      <div class="brand">Employee<span class="dot">Hub</span></div>
+      <div>
+        <div class="tagline">Satu sistem untuk identitas karyawan dan absensi realtime.</div>
+        <div class="sub">Dashboard HR live, geofencing check-in, approval izin/cuti, dan audit trail lengkap — semua dalam satu tempat.</div>
+        <div class="stamp-row mt-16">
+          <span class="stamp">● Realtime attendance</span>
+          <span class="stamp">● RBAC 4 peran</span>
+          <span class="stamp">● Audit trail</span>
+        </div>
+      </div>
+      <svg class="clockface" viewBox="0 0 200 200" aria-hidden="true">
+        <circle cx="100" cy="100" r="98" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+        <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <circle class="tick" cx="100" cy="12" r="4"/>
+        <circle class="tick" cx="100" cy="188" r="3" opacity="0.5"/>
+        <circle class="tick" cx="12" cy="100" r="3" opacity="0.5"/>
+        <circle class="tick" cx="188" cy="100" r="3" opacity="0.5"/>
+        <line x1="100" y1="100" x2="100" y2="45" stroke="#A8763B" stroke-width="3" stroke-linecap="round"/>
+        <line x1="100" y1="100" x2="140" y2="100" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+      </svg>
+    </div>
+    <div class="auth-form-wrap">
+      <div class="auth-card">
+        <h1>Selamat datang kembali</h1>
+        <p class="lead">Masuk untuk mengelola karyawan dan absensi.</p>
+        <div id="error-box" class="error-msg hidden"></div>
+        <form id="login-form">
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" required autocomplete="username" placeholder="nama@employeehub.demo" />
+          </div>
+          <div class="field">
+            <label for="password">Kata sandi</label>
+            <input id="password" type="password" required autocomplete="current-password" placeholder="••••••••" />
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" id="login-btn">Masuk</button>
+        </form>
+        <p class="small mt-16"><button type="button" class="link-btn" id="forgot-link">Lupa password?</button></p>
+        <div id="forgot-box" class="hidden mt-16">
+          <div class="field"><label for="forgot-email">Email</label><input id="forgot-email" type="email" placeholder="nama@employeehub.demo" /></div>
+          <button class="btn btn-outline btn-block btn-sm" id="forgot-submit">Kirim Link Reset</button>
+          <div id="forgot-result" class="small mt-16"></div>
+        </div>
+        <form id="totp-form" class="hidden">
+          <p class="lead" style="margin-bottom:16px;">Masukkan kode 6 digit dari aplikasi authenticator Anda.</p>
+          <div class="field">
+            <label for="totp-code">Kode Verifikasi</label>
+            <input id="totp-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="123456" />
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" id="totp-btn">Verifikasi</button>
+          <button type="button" class="btn btn-outline btn-block mt-16" id="totp-back">‹ Kembali</button>
+        </form>
+        <div class="demo-accounts">
+          <strong>Akun demo</strong> (klik untuk isi otomatis)
+          <button type="button" data-email="admin@employeehub.demo" data-pass="Admin#2026">Super Admin — admin@employeehub.demo</button>
+          <button type="button" data-email="hr@employeehub.demo" data-pass="HrDemo#2026">HR — hr@employeehub.demo</button>
+          <button type="button" data-email="manager@employeehub.demo" data-pass="ManagerDemo#2026">Manager — manager@employeehub.demo</button>
+          <button type="button" data-email="employee@employeehub.demo" data-pass="EmployeeDemo#2026">Karyawan — employee@employeehub.demo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const form = document.getElementById('login-form');
+    const errorBox = document.getElementById('error-box');
+    const btn = document.getElementById('login-btn');
+
+    document.querySelectorAll('.demo-accounts button').forEach((b) => {
+      b.addEventListener('click', () => {
+        document.getElementById('email').value = b.dataset.email;
+        document.getElementById('password').value = b.dataset.pass;
+      });
+    });
+
+    // If already logged in, skip straight to the app shell.
+    api('/auth/me').then(() => { window.location.href = '/app.html'; }).catch(() => {});
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorBox.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Memproses…';
+      try {
+        const res = await api('/auth/login', {
+          method: 'POST',
+          body: { email: document.getElementById('email').value, password: document.getElementById('password').value },
+        });
+        if (res.requiresTotp) {
+          pendingTempToken = res.tempToken;
+          form.classList.add('hidden');
+          document.getElementById('totp-form').classList.remove('hidden');
+          document.getElementById('totp-code').focus();
+          btn.disabled = false;
+          btn.textContent = 'Masuk';
+          return;
+        }
+        localStorage.setItem('accessToken', res.accessToken);
+        window.location.href = '/app.html';
+      } catch (err) {
+        errorBox.textContent = err.message || 'Login gagal. Periksa kembali email dan kata sandi.';
+        errorBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Masuk';
+      }
+    });
+
+    let pendingTempToken = null;
+    const totpForm = document.getElementById('totp-form');
+    const totpBtn = document.getElementById('totp-btn');
+    totpForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorBox.classList.add('hidden');
+      totpBtn.disabled = true;
+      totpBtn.textContent = 'Memverifikasi…';
+      try {
+        const res = await api('/auth/2fa/verify-login', {
+          method: 'POST',
+          body: { tempToken: pendingTempToken, token: document.getElementById('totp-code').value.trim() },
+        });
+        localStorage.setItem('accessToken', res.accessToken);
+        window.location.href = '/app.html';
+      } catch (err) {
+        errorBox.textContent = err.message || 'Kode verifikasi salah.';
+        errorBox.classList.remove('hidden');
+        totpBtn.disabled = false;
+        totpBtn.textContent = 'Verifikasi';
+      }
+    });
+    document.getElementById('totp-back').addEventListener('click', () => {
+      totpForm.classList.add('hidden');
+      form.classList.remove('hidden');
+      errorBox.classList.add('hidden');
+    });
+
+    document.getElementById('forgot-link').addEventListener('click', () => {
+      document.getElementById('forgot-box').classList.toggle('hidden');
+    });
+    document.getElementById('forgot-submit').addEventListener('click', async () => {
+      const email = document.getElementById('forgot-email').value.trim();
+      const resultBox = document.getElementById('forgot-result');
+      if (!email) return;
+      const btn = document.getElementById('forgot-submit');
+      btn.disabled = true;
+      btn.textContent = 'Mengirim…';
+      try {
+        const res = await api('/auth/forgot-password', { method: 'POST', body: { email } });
+        resultBox.innerHTML = `<span style="color:var(--green);">${res.message}</span>`;
+        if (res.devResetLink) {
+          resultBox.innerHTML += `<div class="mt-16" style="background:var(--gray-100);padding:10px;border-radius:6px;">
+            <strong>Mode dev</strong> — SMTP belum dikonfigurasi, link ditampilkan langsung:<br/>
+            <a href="${res.devResetLink}">${res.devResetLink}</a></div>`;
+        }
+      } catch (err) {
+        resultBox.innerHTML = `<span style="color:var(--red);">${err.message}</span>`;
+      }
+      btn.disabled = false;
+      btn.textContent = 'Kirim Link Reset';
+    });
+  </script>
+</body>
+</html>
