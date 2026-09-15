@@ -8,22 +8,25 @@ const DashboardSection = {
   },
 
   async renderHr(container) {
+    const seq = currentRouteSeq();
     container.innerHTML = `<div class="empty-state">Memuat dashboard…</div>`;
     let data;
     try {
       data = await api('/dashboard/hr');
     } catch (e) {
+      if (seq !== currentRouteSeq()) return;
       container.innerHTML = `<div class="empty-state">Gagal memuat dashboard: ${escapeHtml(e.message)}</div>`;
       return;
     }
+    if (seq !== currentRouteSeq()) return;
     const s = data.stats;
 
     container.innerHTML = `
       <div class="grid grid-4">
-        ${statCard('👥', 'var(--navy-100)', 'var(--navy-800)', 'Total Karyawan', s.totalEmployees, `${s.activeEmployees} aktif · ${s.inactiveEmployees} nonaktif`)}
-        ${statCard('✅', 'var(--green-100)', 'var(--green)', 'Hadir Hari Ini', s.presentToday + s.completedToday + s.workingToday, `${s.attendancePercentage}% tingkat kehadiran`)}
-        ${statCard('⏰', 'var(--amber-100)', 'var(--amber-dark)', 'Terlambat', s.lateToday, `Check-in: ${s.checkedInToday} · Check-out: ${s.checkedOutToday}`)}
-        ${statCard('🌴', 'var(--blue-100)', 'var(--blue)', 'Izin / Cuti / Sakit', s.leaveToday + s.sickToday + s.permissionToday, `${s.pendingLeave} pengajuan pending`)}
+        ${statCard('users', 'Total Karyawan', s.totalEmployees, `${s.activeEmployees} aktif, ${s.inactiveEmployees} nonaktif`)}
+        ${statCard('pulse', 'Hadir Hari Ini', s.presentToday + s.completedToday + s.workingToday, `${s.attendancePercentage}% tingkat kehadiran`)}
+        ${statCard('overtime', 'Terlambat', s.lateToday, `Check-in: ${s.checkedInToday}, Check-out: ${s.checkedOutToday}`)}
+        ${statCard('leave', 'Izin dan Cuti', s.leaveToday + s.sickToday + s.permissionToday, `${s.pendingLeave} pengajuan pending`)}
       </div>
 
       <div class="grid grid-2 mt-16">
@@ -39,11 +42,11 @@ const DashboardSection = {
 
       <div class="grid grid-3 mt-16">
         <div class="card">
-          <div class="card-title">Karyawan Baru Check-in</div>
+          <div class="card-title">Check-in Terbaru</div>
           <div id="w-checkins"></div>
         </div>
         <div class="card">
-          <div class="card-title">Karyawan Baru Check-out</div>
+          <div class="card-title">Check-out Terbaru</div>
           <div id="w-checkouts"></div>
         </div>
         <div class="card">
@@ -70,68 +73,93 @@ const DashboardSection = {
     `;
 
     document.getElementById('w-checkins').innerHTML = data.recentCheckins.length
-      ? data.recentCheckins.map((c) => rowLine(c.full_name, fmtTime(c.check_in_at), statusPill(c.status))).join('')
+      ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Karyawan</th><th>Jam</th><th>Status</th></tr></thead><tbody>${
+          data.recentCheckins.map((c) => `<tr><td><div class="emp-name">${escapeHtml(c.full_name)}</div></td><td class="mono">${fmtTime(c.check_in_at)}</td><td>${statusPill(c.status)}</td></tr>`).join('')
+        }</tbody></table></div>`
       : emptyLine('Belum ada check-in hari ini');
     document.getElementById('w-checkouts').innerHTML = data.recentCheckouts.length
-      ? data.recentCheckouts.map((c) => rowLine(c.full_name, fmtTime(c.check_out_at))).join('')
+      ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Karyawan</th><th>Jam</th></tr></thead><tbody>${
+          data.recentCheckouts.map((c) => `<tr><td><div class="emp-name">${escapeHtml(c.full_name)}</div></td><td class="mono">${fmtTime(c.check_out_at)}</td></tr>`).join('')
+        }</tbody></table></div>`
       : emptyLine('Belum ada check-out hari ini');
     document.getElementById('w-leave').innerHTML = data.recentLeaveRequests.length
-      ? data.recentLeaveRequests.map((l) => rowLine(l.full_name, l.type, statusPill(l.status))).join('')
+      ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Karyawan</th><th>Jenis</th><th>Status</th></tr></thead><tbody>${
+          data.recentLeaveRequests.map((l) => `<tr><td><div class="emp-name">${escapeHtml(l.full_name)}</div></td><td class="muted">${escapeHtml(l.type)}</td><td>${statusPill(l.status)}</td></tr>`).join('')
+        }</tbody></table></div>`
       : emptyLine('Belum ada pengajuan');
     document.getElementById('w-activity').innerHTML = data.recentActivity.length
       ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Aksi</th><th>Pengguna</th><th>Waktu</th></tr></thead><tbody>${
-          data.recentActivity.map((a) => `<tr><td>${escapeHtml(a.action)}</td><td>${escapeHtml(a.email || '—')}</td><td>${fmtDateTime(a.created_at)}</td></tr>`).join('')
+          data.recentActivity.map((a) => `<tr><td>${escapeHtml(a.action)}</td><td>${escapeHtml(a.email || '-')}</td><td>${fmtDateTime(a.created_at)}</td></tr>`).join('')
         }</tbody></table></div>`
       : emptyLine('Belum ada aktivitas');
 
     api('/dashboard/reminders').then((r) => {
+      if (seq !== currentRouteSeq()) return;
       const box = document.getElementById('w-reminders');
       if (!box) return;
       const items = [
-        ...r.birthdays.map((b) => rowLine(`🎂 ${b.fullName}`, fmtDate(b.date))),
-        ...r.anniversaries.map((a) => rowLine(`🎉 ${a.fullName}`, `${a.years} tahun bekerja`)),
-        ...r.contractExpiring.map((c) => rowLine(`⚠️ ${c.fullName}`, `Kontrak berakhir ${c.daysLeft} hari lagi`)),
+        ...r.birthdays.map((b) => rowLine(b.fullName, `Ulang tahun ${fmtDate(b.date)}`)),
+        ...r.anniversaries.map((a) => rowLine(a.fullName, `${a.years} tahun bekerja`)),
+        ...r.contractExpiring.map((c) => rowLine(c.fullName, `Kontrak berakhir ${c.daysLeft} hari lagi`)),
       ];
       box.innerHTML = items.length ? items.join('') : emptyLine('Tidak ada reminder dalam 14 hari ke depan');
-    }).catch(() => {});
+    }).catch(() => {
+      const box = document.getElementById('w-reminders');
+      if (box) box.innerHTML = emptyLine('Gagal memuat reminder');
+    });
 
     api('/dashboard/anomalies').then((rows) => {
+      if (seq !== currentRouteSeq()) return;
       const box = document.getElementById('w-anomalies');
       if (!box) return;
       box.innerHTML = rows.length
-        ? rows.map((r) => rowLine(
-            `${r.full_name} (${r.department_name || '—'})`,
-            `${r.late_count}x telat · ${r.missing_checkout_count}x lupa checkout · ${r.absent_count}x absen`
-          )).join('')
+        ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Karyawan</th><th class="text-right">Telat</th><th class="text-right">Lupa Checkout</th><th class="text-right">Absen</th><th class="text-right">Total</th><th>Tingkat</th></tr></thead><tbody>${
+            rows.map((r) => {
+              const total = (r.late_count || 0) + (r.missing_checkout_count || 0) + (r.absent_count || 0);
+              return `<tr><td><div class="emp-name">${escapeHtml(r.full_name)}</div><div class="emp-sub">${escapeHtml(r.department_name || '-')}</div></td>`
+                + `<td class="text-right mono">${r.late_count || 0}</td><td class="text-right mono">${r.missing_checkout_count || 0}</td>`
+                + `<td class="text-right mono">${r.absent_count || 0}</td><td class="text-right mono"><strong>${total}</strong></td>`
+                + `<td>${anomalyPill(total)}</td></tr>`;
+            }).join('')
+          }</tbody></table></div>`
         : emptyLine('Tidak ada anomali terdeteksi');
-    }).catch(() => {});
+    }).catch(() => {
+      const box = document.getElementById('w-anomalies');
+      if (box) box.innerHTML = emptyLine('Gagal memuat anomali');
+    });
 
     renderBarChart('chart-daily', s.dailyTrend.map((d) => d.date.slice(5)), [
-      { label: 'Hadir', data: s.dailyTrend.map((d) => d.present), color: '#3f7355' },
-      { label: 'Terlambat', data: s.dailyTrend.map((d) => d.late), color: '#a8763b' },
+      { label: 'Hadir', data: s.dailyTrend.map((d) => d.present), color: '#2f6b4a' },
+      { label: 'Terlambat', data: s.dailyTrend.map((d) => d.late), color: '#8a5f1c' },
     ]);
     renderBarChart('chart-monthly', s.monthlyTrend.map((d) => d.month), [
-      { label: 'Hadir', data: s.monthlyTrend.map((d) => d.present), color: '#3f7355' },
-      { label: 'Terlambat', data: s.monthlyTrend.map((d) => d.late), color: '#a8763b' },
-      { label: 'Absen', data: s.monthlyTrend.map((d) => d.absent), color: '#a8452f' },
+      { label: 'Hadir', data: s.monthlyTrend.map((d) => d.present), color: '#2f6b4a' },
+      { label: 'Terlambat', data: s.monthlyTrend.map((d) => d.late), color: '#8a5f1c' },
+      { label: 'Absen', data: s.monthlyTrend.map((d) => d.absent), color: '#a83226' },
     ]);
 
-    window.addEventListener('hris:stats', (e) => {
+    // Re-register cleanly: renderHr() runs on every visit, guard against duplicates.
+    window.removeEventListener('hris:stats', this._statsListener);
+    this._statsListener = (e) => {
       if (!document.getElementById('chart-daily')) return; // navigated away
       const ns = e.detail;
       container.querySelectorAll('.stat-value')[1].textContent = ns.presentToday + ns.completedToday + ns.workingToday;
       container.querySelectorAll('.stat-value')[2].textContent = ns.lateToday;
-    }, { once: false });
+    };
+    window.addEventListener('hris:stats', this._statsListener);
   },
 
   async renderEmployee(container, user) {
+    const seq = currentRouteSeq();
     let data;
     try {
       data = await api('/dashboard/me');
     } catch (e) {
+      if (seq !== currentRouteSeq()) return;
       container.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
       return;
     }
+    if (seq !== currentRouteSeq()) return;
     const emp = data.employee;
     if (!emp) {
       container.innerHTML = `<div class="empty-state">Akun ini belum ditautkan ke data karyawan.</div>`;
@@ -142,7 +170,7 @@ const DashboardSection = {
     const greeting = hour < 11 ? 'Selamat pagi' : hour < 15 ? 'Selamat siang' : hour < 18 ? 'Selamat sore' : 'Selamat malam';
 
     container.innerHTML = `
-      <h2 style="margin:0 0 4px;">${greeting}, ${escapeHtml(emp.full_name.split(' ')[0])} 👋</h2>
+      <h2 style="margin:0 0 4px;">${greeting}, ${escapeHtml(emp.full_name.split(' ')[0])}</h2>
       <p class="muted" style="margin:0 0 18px;">${escapeHtml(emp.position_title || '')} · ${escapeHtml(emp.department_name || '')}</p>
 
       <div class="checkclock">
@@ -183,7 +211,8 @@ const DashboardSection = {
       tm.textContent = now.toLocaleTimeString('id-ID');
     };
     tick();
-    const clockTimer = setInterval(() => { if (document.getElementById('clock-time')) tick(); else clearInterval(clockTimer); }, 1000);
+    if (window.__clockTimer) clearInterval(window.__clockTimer);
+    window.__clockTimer = setInterval(() => { if (document.getElementById('clock-time')) tick(); else { clearInterval(window.__clockTimer); window.__clockTimer = null; } }, 1000);
 
     this.renderClockActions(today);
 
@@ -207,6 +236,7 @@ const DashboardSection = {
 
     try {
       const announcements = await api('/announcements');
+      if (seq !== currentRouteSeq()) return;
       document.getElementById('w-announce').innerHTML = announcements.length
         ? announcements.map((a) => `<div style="padding:8px 0;border-bottom:1px solid var(--border);"><strong style="font-size:13px;">${escapeHtml(a.title)}</strong><div class="small muted">${escapeHtml(a.content)}</div></div>`).join('')
         : emptyLine('Belum ada pengumuman');
@@ -219,10 +249,10 @@ const DashboardSection = {
     const hasCheckedOut = today && today.check_out_at;
 
     if (!hasCheckedIn) {
-      el.innerHTML = `<button class="btn btn-amber" id="btn-checkin">Check In</button>`;
+      el.innerHTML = `<button class="btn btn-primary" id="btn-checkin">Check In</button>`;
       document.getElementById('btn-checkin').addEventListener('click', () => this.doCheckAction('check-in'));
     } else if (!hasCheckedOut) {
-      el.innerHTML = `<span class="pill pill-present" style="margin-right:8px;">Masuk ${fmtTime(today.check_in_at)}</span><button class="btn btn-amber" id="btn-checkout">Check Out</button>`;
+      el.innerHTML = `<span class="pill pill-present" style="margin-right:8px;">Masuk ${fmtTime(today.check_in_at)}</span><button class="btn btn-primary" id="btn-checkout">Check Out</button>`;
       document.getElementById('btn-checkout').addEventListener('click', () => this.doCheckAction('check-out'));
     } else {
       el.innerHTML = `<span class="pill pill-completed">Selesai · ${((today.worked_minutes || 0) / 60).toFixed(1)} jam</span>`;
@@ -258,9 +288,9 @@ const DashboardSection = {
   },
 };
 
-function statCard(icon, iconBg, iconColor, label, value, delta) {
+function statCard(iconName, label, value, delta) {
   return `<div class="card stat-card">
-    <div class="stat-icon" style="background:${iconBg};color:${iconColor}">${icon}</div>
+    <div class="kpi-icon">${icon(iconName, 17)}</div>
     <div class="label">${escapeHtml(label)}</div>
     <div class="stat-value">${value}</div>
     <div class="delta">${escapeHtml(delta)}</div>
@@ -273,6 +303,12 @@ function rowLine(left, mid, right = '') {
 }
 function emptyLine(msg) { return `<div class="small muted" style="padding:10px 0;">${escapeHtml(msg)}</div>`; }
 
+function anomalyPill(total) {
+  const level = total >= 6 ? 'late' : total >= 4 ? 'pending' : 'leave';
+  const label = total >= 6 ? 'Tinggi' : total >= 4 ? 'Sedang' : 'Ringan';
+  return `<span class="pill pill-${level}">${label}</span>`;
+}
+
 const _chartInstances = {};
 function renderBarChart(canvasId, labels, series) {
   const ctx = document.getElementById(canvasId);
@@ -280,11 +316,14 @@ function renderBarChart(canvasId, labels, series) {
   if (_chartInstances[canvasId]) _chartInstances[canvasId].destroy();
   _chartInstances[canvasId] = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: series.map((s) => ({ label: s.label, data: s.data, backgroundColor: s.color, borderRadius: 4 })) },
+    data: { labels, datasets: series.map((s) => ({ label: s.label, data: s.data, backgroundColor: s.color, borderRadius: 6, maxBarThickness: 26 })) },
     options: {
       responsive: true,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
-      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, font: { size: 11 } } } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eef0ea' } },
+      },
     },
   });
 }

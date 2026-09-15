@@ -2,7 +2,7 @@ const OvertimeSection = {
   async render(container, { user }) {
     const canReview = can('overtime.approve');
     container.innerHTML = `
-      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-amber btn-sm" id="new-ot">+ Ajukan Lembur</button></div></div>
+      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-primary btn-sm" id="new-ot">Ajukan Lembur</button></div></div>
       <div id="ot-body"><div class="empty-state">Memuat…</div></div>
     `;
     document.getElementById('new-ot').addEventListener('click', () => this.openForm());
@@ -11,8 +11,10 @@ const OvertimeSection = {
 
   async load(canReview) {
     const body = document.getElementById('ot-body');
+    const loadSeq = (this._loadSeq = (this._loadSeq || 0) + 1);
     let rows;
-    try { rows = await api('/overtime'); } catch (e) { body.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`; return; }
+    try { rows = await api('/overtime'); } catch (e) { if (loadSeq !== this._loadSeq) return; body.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`; return; }
+    if (loadSeq !== this._loadSeq) return;
     body.innerHTML = `
       <div class="card table-wrap">
         <table class="data-table">
@@ -21,13 +23,13 @@ const OvertimeSection = {
             <tr>
               <td>${escapeHtml(r.full_name)}</td>
               <td>${fmtDate(r.date)}</td>
-              <td>${escapeHtml(r.start_time)}–${escapeHtml(r.end_time)}</td>
+              <td>${escapeHtml(r.start_time)}-${escapeHtml(r.end_time)}</td>
               <td>${(r.total_minutes/60).toFixed(1)} jam</td>
-              <td class="small">${escapeHtml(r.reason || '—')}</td>
+              <td class="small">${escapeHtml(r.reason || '-')}</td>
               <td>${statusPill(r.status)}</td>
-              ${canReview ? `<td>${r.status === 'pending' ? `
-                <button class="btn btn-sm btn-outline" data-approve="${r.id}">Approve</button>
-                <button class="btn btn-sm btn-danger" data-reject="${r.id}">Reject</button>` : '—'}</td>` : ''}
+              ${canReview ? `<td>${r.status === 'pending' ? `<span class="row-actions">`
+                + `<button class="btn btn-sm btn-primary" data-approve="${r.id}">Setujui</button>`
+                + `<button class="btn btn-sm btn-danger-outline" data-reject="${r.id}">Tolak</button></span>` : '-'}</td>` : ''}
             </tr>`).join('') : `<tr><td colspan="7"><div class="empty-state">Belum ada pengajuan lembur</div></td></tr>`}</tbody>
         </table>
       </div>`;
@@ -50,7 +52,7 @@ const OvertimeSection = {
         </div>
         <div class="field"><label>Alasan</label><textarea id="ot-reason" rows="3"></textarea></div>
       `,
-      footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="ot-submit">Ajukan</button>`,
+      footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="ot-submit">Ajukan</button>`,
       onMount: () => {
         document.getElementById('ot-submit').addEventListener('click', async () => {
           const date = document.getElementById('ot-date').value;

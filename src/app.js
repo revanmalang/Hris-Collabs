@@ -11,18 +11,18 @@ const app = express();
 
 app.disable('x-powered-by');
 
-// Secure headers (spec #20). CSP is relaxed for inline scripts because the
-// bundled frontend is plain HTML/JS served from the same origin with no
-// external script sources beyond the CDN Tailwind build below.
+// Secure headers. CSP allows the first-party app, inline UI handlers, the
+// JS/CDN vendors below, and Google Fonts (Inter) used by the frontend.
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.socket.io', 'https://cdn.tailwindcss.com', 'https://cdn.jsdelivr.net'],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.socket.io', 'https://cdn.jsdelivr.net'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'blob:'],
-        connectSrc: ["'self'", 'ws:', 'wss:'],
+        connectSrc: ["'self'", 'ws:', 'wss:', 'https://cdn.socket.io', 'https://cdn.jsdelivr.net'],
       },
     },
   })

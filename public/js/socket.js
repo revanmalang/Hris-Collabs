@@ -46,7 +46,7 @@ function initRealtime() {
   });
 
   socket.on('announcement:new', (a) => {
-    toast(`📢 ${a.title}`, 'info');
+    toast(`Pengumuman: ${a.title}`, 'info');
     window.dispatchEvent(new CustomEvent('hris:announcement', { detail: a }));
   });
 }

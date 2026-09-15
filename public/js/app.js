@@ -4,17 +4,17 @@
 // permission a Super Admin just granted through Settings > Hak Akses is
 // immediately reachable in the sidebar - not just allowed by the API.
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊', permission: null },
-  { id: 'employees', label: 'Direktori Karyawan', icon: '👥', permission: null },
-  { id: 'attendance-live', label: 'Live Attendance', icon: '🟢', permission: 'attendance.live_monitor' },
-  { id: 'attendance-history', label: 'Riwayat Absensi', icon: '🕒', permission: null },
-  { id: 'leave', label: 'Izin & Cuti', icon: '📝', permission: null },
-  { id: 'overtime', label: 'Lembur', icon: '⏱️', permission: null },
-  { id: 'organization', label: 'Organisasi', icon: '🏢', permission: 'organization.manage' },
-  { id: 'announcements', label: 'Pengumuman', icon: '📣', permission: null },
-  { id: 'reports', label: 'Laporan', icon: '📄', permission: 'reports.view' },
-  { id: 'audit-log', label: 'Audit Log', icon: '🛡️', permission: 'audit.view' },
-  { id: 'settings', label: 'Pengaturan', icon: '⚙️', permission: 'settings.manage', altPermission: 'audit.view' },
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', permission: null },
+  { id: 'employees', label: 'Direktori Karyawan', icon: 'users', permission: null },
+  { id: 'attendance-live', label: 'Live Attendance', icon: 'pulse', permission: 'attendance.live_monitor' },
+  { id: 'attendance-history', label: 'Riwayat Absensi', icon: 'history', permission: null },
+  { id: 'leave', label: 'Izin dan Cuti', icon: 'leave', permission: null },
+  { id: 'overtime', label: 'Lembur', icon: 'overtime', permission: null },
+  { id: 'organization', label: 'Organisasi', icon: 'org', permission: 'organization.manage' },
+  { id: 'announcements', label: 'Pengumuman', icon: 'announce', permission: null },
+  { id: 'reports', label: 'Laporan', icon: 'report', permission: 'reports.view' },
+  { id: 'audit-log', label: 'Audit Log', icon: 'shield', permission: 'audit.view' },
+  { id: 'settings', label: 'Pengaturan', icon: 'settings', permission: 'settings.manage', altPermission: 'audit.view' },
 ];
 
 const SECTION_MAP = {
@@ -32,6 +32,12 @@ const SECTION_MAP = {
 };
 
 let CURRENT_USER = null;
+
+// Navigation generation counter. Section renders capture it before each
+// await and abort when it changes (user navigated away), so a slow
+// response never overwrites the newly opened page.
+let routeSeq = 0;
+function currentRouteSeq() { return routeSeq; }
 
 // Central permission check used by both nav visibility and in-page buttons
 // (see sections/*.js). Reads CURRENT_USER.permissions, populated fresh from
@@ -74,7 +80,7 @@ function renderNav() {
   const items = visibleNavItems();
   group.innerHTML = `
     <div class="nav-label">Menu</div>
-    ${items.map((n) => `<a href="#${n.id}" class="nav-item" data-id="${n.id}"><span class="ic">${n.icon}</span>${n.label}</a>`).join('')}
+    ${items.map((n) => `<a href="#${n.id}" class="nav-item" data-id="${n.id}"><span class="ic">${icon(n.icon, 17)}</span>${n.label}</a>`).join('')}
   `;
 }
 
@@ -98,7 +104,7 @@ function renderUserChip() {
         <hr style="border:none;border-top:1px solid var(--border);margin:16px 0" />
         <div class="section-heading">Autentikasi Dua Faktor (2FA)</div>
         <div id="twofa-area">${CURRENT_USER.totpEnabled
-          ? `<p class="small" style="color:var(--green);font-weight:600;">✓ 2FA aktif untuk akun ini.</p>
+          ? `<p class="small" style="color:var(--success);font-weight:600;">2FA aktif untuk akun ini.</p>
              <div class="field"><label>Kata sandi (untuk menonaktifkan)</label><input type="password" id="disable-2fa-pw" /></div>
              <button class="btn btn-outline btn-sm" id="disable-2fa">Nonaktifkan 2FA</button>`
           : `<p class="small muted">Tambahkan lapisan keamanan menggunakan Google Authenticator / Authy.</p>
@@ -107,7 +113,7 @@ function renderUserChip() {
         }</div>
       `,
       footHtml: `
-        <button class="btn btn-outline" onclick="closeModal()">Tutup</button>
+        <button class="btn btn-outline" data-close-modal>Tutup</button>
         <button class="btn btn-primary" id="save-pw">Simpan Kata Sandi</button>
         <button class="btn btn-danger" id="do-logout">Keluar</button>`,
       onMount: () => {
@@ -130,13 +136,15 @@ function renderUserChip() {
         document.getElementById('start-2fa')?.addEventListener('click', async () => {
           try {
             const res = await api('/auth/2fa/setup', { method: 'POST' });
+            const qr = safeUrl(res.qrDataUrl, true);
+            if (!qr) { toast('QR 2FA tidak valid dari server', 'error'); return; }
             document.getElementById('twofa-setup-body').innerHTML = `
               <div style="text-align:center;margin-top:12px;">
-                <img src="${res.qrDataUrl}" alt="QR 2FA" style="width:160px;height:160px;border:1px solid var(--border);border-radius:8px;" />
+                <img src="${escapeHtml(qr)}" alt="QR 2FA" style="width:160px;height:160px;border:1px solid var(--border);border-radius:8px;" />
                 <p class="small muted mt-16">Atau masukkan manual: <code>${escapeHtml(res.secret)}</code></p>
               </div>
               <div class="field"><label>Kode dari Authenticator</label><input id="confirm-2fa-code" inputmode="numeric" maxlength="6" placeholder="123456" /></div>
-              <button class="btn btn-amber btn-sm btn-block" id="confirm-2fa">Konfirmasi & Aktifkan</button>
+              <button class="btn btn-primary btn-sm btn-block" id="confirm-2fa">Konfirmasi dan Aktifkan</button>
             `;
             document.getElementById('confirm-2fa').addEventListener('click', async () => {
               try {
@@ -162,9 +170,24 @@ function renderUserChip() {
   });
 }
 
+function isSidebarOpen() {
+  return document.getElementById('sidebar').classList.contains('open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-scrim')?.classList.remove('visible');
+}
+
 function wireTopbar() {
   document.getElementById('menu-toggle').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('open');
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('open');
+    document.getElementById('sidebar-scrim')?.classList.toggle('visible', sidebar.classList.contains('open'));
+  });
+  document.getElementById('sidebar-scrim')?.addEventListener('click', closeSidebar);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isSidebarOpen()) closeSidebar();
   });
 
   document.getElementById('notif-btn').addEventListener('click', async () => {
@@ -178,7 +201,7 @@ function wireTopbar() {
             <div class="small muted">${escapeHtml(n.message || '')}</div>
             <div class="small muted">${fmtDateTime(n.created_at)}</div>
           </div>`).join('')
-        : `<div class="empty-state"><div class="ic">🔔</div>Belum ada notifikasi</div>`,
+        : emptyState('Belum ada notifikasi', 'Notifikasi baru akan muncul di sini.'),
       onMount: async () => {
         await api('/notifications/read-all', { method: 'POST' }).catch(() => {});
         refreshUnreadCount();
@@ -193,26 +216,36 @@ function wireTopbar() {
     if (!q) { resultsBox.classList.add('hidden'); return; }
     const res = await api(`/search?q=${encodeURIComponent(q)}`).catch(() => null);
     if (!res) return;
+    if (searchInput.value.trim() !== q) return; // typed ahead, drop stale result
     const rows = [
-      ...res.employees.map((x) => `<div class="nav-item" style="color:var(--ink)" onclick="window.location.hash='employees'; document.getElementById('global-search').value='';">👤 ${escapeHtml(x.full_name)} <span class="muted small">(${escapeHtml(x.employee_code)})</span></div>`),
-      ...res.departments.map((x) => `<div class="nav-item" style="color:var(--ink)" onclick="window.location.hash='organization'">🏢 ${escapeHtml(x.name)}</div>`),
-      ...res.announcements.map((x) => `<div class="nav-item" style="color:var(--ink)" onclick="window.location.hash='announcements'">📣 ${escapeHtml(x.title)}</div>`),
+      ...res.employees.map((x) => `<div class="nav-item" style="color:var(--ink)" data-goto="employees">${icon('users', 15)} ${escapeHtml(x.full_name)} <span class="muted small">(${escapeHtml(x.employee_code)})</span></div>`),
+      ...res.departments.map((x) => `<div class="nav-item" style="color:var(--ink)" data-goto="organization">${icon('org', 15)} ${escapeHtml(x.name)}</div>`),
+      ...res.announcements.map((x) => `<div class="nav-item" style="color:var(--ink)" data-goto="announcements">${icon('announce', 15)} ${escapeHtml(x.title)}</div>`),
     ];
     resultsBox.innerHTML = rows.length ? rows.join('') : `<div class="small muted" style="padding:8px;">Tidak ditemukan</div>`;
     resultsBox.classList.remove('hidden');
   }, 300));
+  resultsBox.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-goto]');
+    if (!t) return;
+    window.location.hash = t.dataset.goto;
+    searchInput.value = '';
+    resultsBox.classList.add('hidden');
+  });
   document.addEventListener('click', (e) => {
     if (!resultsBox.contains(e.target) && e.target !== searchInput) resultsBox.classList.add('hidden');
   });
 }
 
 function route() {
+  routeSeq++;
+  if (window.__clockTimer) { clearInterval(window.__clockTimer); window.__clockTimer = null; }
   let id = (window.location.hash || '#dashboard').slice(1);
   const allowed = visibleNavItems().map((n) => n.id);
   if (!allowed.includes(id)) id = allowed[0];
 
   document.querySelectorAll('.nav-item').forEach((el) => el.classList.toggle('active', el.dataset.id === id));
-  document.getElementById('sidebar').classList.remove('open');
+  closeSidebar();
 
   const navItem = NAV_ITEMS.find((n) => n.id === id);
   document.getElementById('page-title').textContent = navItem ? navItem.label : 'Dashboard';

@@ -150,11 +150,15 @@ router.get(
          FROM employees e
          JOIN attendance a ON a.employee_id = e.id AND a.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
          LEFT JOIN departments d ON d.id = e.department_id
-         WHERE e.deleted_at IS NULL
-         GROUP BY e.id
-         HAVING late_count >= 3 OR missing_checkout_count >= 2 OR absent_count >= 3
-         ORDER BY (late_count + missing_checkout_count + absent_count) DESC
-         LIMIT 20`
+          WHERE e.deleted_at IS NULL
+          GROUP BY e.id, e.full_name, e.employee_code, d.name
+          HAVING SUM(CASE WHEN a.is_late = 1 THEN 1 ELSE 0 END) >= 3
+            OR SUM(CASE WHEN a.check_in_at IS NOT NULL AND a.check_out_at IS NULL AND a.date < CURDATE() THEN 1 ELSE 0 END) >= 2
+            OR SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) >= 3
+          ORDER BY (SUM(CASE WHEN a.is_late = 1 THEN 1 ELSE 0 END)
+            + SUM(CASE WHEN a.check_in_at IS NOT NULL AND a.check_out_at IS NULL AND a.date < CURDATE() THEN 1 ELSE 0 END)
+            + SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END)) DESC
+          LIMIT 20`
       )
       .all();
     res.json(rows);

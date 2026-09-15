@@ -21,7 +21,9 @@ const SettingsSection = {
 
   async renderGeneral(canEdit) {
     const body = document.getElementById('settings-body');
+    const seq = currentRouteSeq();
     const settings = await api('/settings').catch(() => ({}));
+    if (seq !== currentRouteSeq()) return;
     body.innerHTML = `
       <div class="grid grid-2">
         <div class="card">
@@ -75,9 +77,11 @@ const SettingsSection = {
 
   async renderPermissions() {
     const body = document.getElementById('settings-body');
+    const seq = currentRouteSeq();
     body.innerHTML = `<div class="empty-state">Memuat…</div>`;
     let matrix;
-    try { matrix = await api('/permissions'); } catch (e) { body.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`; return; }
+    try { matrix = await api('/permissions'); } catch (e) { if (seq !== currentRouteSeq()) return; body.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`; return; }
+    if (seq !== currentRouteSeq()) return;
 
     const categories = [...new Set(matrix.permissions.map((p) => p.category))];
     const roleLabel = { hr: 'HR / SDM', manager: 'Manager' };
@@ -90,7 +94,7 @@ const SettingsSection = {
             <thead><tr><th>Permission</th>${matrix.roles.map((r) => `<th style="text-align:center;">${roleLabel[r]}</th>`).join('')}</tr></thead>
             <tbody>
               ${categories.map((cat) => `
-                <tr><td colspan="${matrix.roles.length + 1}" style="background:var(--gray-100);font-weight:700;font-size:11.5px;">${escapeHtml(cat)}</td></tr>
+                <tr><td colspan="${matrix.roles.length + 1}" style="background:var(--neutral-soft);font-weight:700;font-size:11.5px;">${escapeHtml(cat)}</td></tr>
                 ${matrix.permissions.filter((p) => p.category === cat).map((p) => {
                   const idx = matrix.permissions.indexOf(p);
                   return `<tr>
@@ -127,16 +131,16 @@ const SettingsSection = {
       <div class="grid grid-2">
         <div class="card">
           <div class="card-title">Backup Database</div>
-          <p class="small muted">Unduh salinan lengkap database (file .sql) untuk disimpan sebagai cadangan. File ini berisi semua data termasuk akun login — simpan di tempat yang aman.</p>
-          <button class="btn btn-outline btn-sm" id="dl-backup">⇩ Unduh Backup (.sql)</button>
+          <p class="small muted">Unduh salinan lengkap database (file .sql) untuk disimpan sebagai cadangan. File ini berisi semua data termasuk akun login, simpan di tempat yang aman.</p>
+          <button class="btn btn-outline btn-sm" id="dl-backup">Unduh Backup (.sql)</button>
           <div class="section-heading">Export Data (JSON)</div>
-          <p class="small muted">Ekspor seluruh data bisnis (karyawan, absensi, izin/cuti, dll.) dalam format JSON yang mudah dibaca — untuk migrasi atau ditinjau di luar aplikasi. Tidak menyertakan password/kredensial login.</p>
-          <button class="btn btn-outline btn-sm" id="dl-export">⇩ Export Data (JSON)</button>
+          <p class="small muted">Ekspor seluruh data bisnis (karyawan, absensi, izin dan cuti, dan lain-lain) dalam format JSON yang mudah dibaca, untuk migrasi atau ditinjau di luar aplikasi. Tidak menyertakan password atau kredensial login.</p>
+          <button class="btn btn-outline btn-sm" id="dl-export">Export Data (JSON)</button>
         </div>
         <div class="card">
-          <div class="card-title" style="color:var(--red);">⚠️ Restore dari Backup</div>
-          <p class="small" style="color:var(--red);">
-            <strong>Peringatan:</strong> Restore akan MENGGANTI SELURUH data saat ini dengan isi file backup yang diunggah. Tindakan ini tidak bisa dibatalkan. Proses ini dijalankan langsung ke database — tidak perlu restart server.
+          <div class="card-title" style="color:var(--danger);">Restore dari Backup</div>
+          <p class="small" style="color:var(--danger);">
+            <strong>Peringatan:</strong> Restore akan mengganti seluruh data saat ini dengan isi file backup yang diunggah. Tindakan ini tidak bisa dibatalkan. Proses ini dijalankan langsung ke database, tidak perlu restart server.
           </p>
           <div class="field"><label>File Backup (.sql)</label><input type="file" id="restore-file" accept=".sql" /></div>
           <button class="btn btn-danger btn-sm" id="do-restore">Restore Sekarang</button>
@@ -144,14 +148,14 @@ const SettingsSection = {
         </div>
       </div>
 
-      <div class="card mt-16" style="border-color:var(--red);">
-        <div class="card-title" style="color:var(--red);">☠️ Danger Zone — Hapus Semua Data</div>
-        <p class="small" style="color:var(--red);">
-          Menghapus SEMUA karyawan, absensi, izin/cuti, lembur, departemen, jabatan, lokasi, shift, jadwal, rotasi,
-          pengumuman, dokumen, dan akun login lain (termasuk akun demo) — sekali klik, tidak bisa dibatalkan.
+      <div class="card mt-16" style="border-color:var(--danger);">
+        <div class="card-title" style="color:var(--danger);">Zona Berbahaya - Hapus Semua Data</div>
+        <p class="small" style="color:var(--danger);">
+          Menghapus semua karyawan, absensi, izin dan cuti, lembur, departemen, jabatan, lokasi, shift, jadwal, rotasi,
+          pengumuman, dokumen, dan akun login lain (termasuk akun demo). Sekali klik, tidak bisa dibatalkan.
           Akun Anda yang sedang login <strong>tetap aman</strong> dan tidak ikut terhapus. Audit log dan pengaturan
-          sistem juga tetap dipertahankan. Gunakan ini untuk membersihkan data contoh sebelum mulai pakai data asli —
-          <strong>ambil backup dulu di atas kalau ragu.</strong>
+          sistem juga tetap dipertahankan. Gunakan ini untuk membersihkan data contoh sebelum mulai pakai data asli.
+          <strong>Ambil backup dulu di atas kalau ragu.</strong>
         </p>
         <div class="field" style="max-width:360px;">
           <label>Ketik <code>HAPUS SEMUA DATA</code> untuk konfirmasi</label>
@@ -183,10 +187,10 @@ const SettingsSection = {
       const resultBox = document.getElementById('restore-result');
       try {
         const res = await api('/settings/backup/restore', { method: 'POST', body: fd, isForm: true });
-        resultBox.innerHTML = `<span style="color:var(--green);">${escapeHtml(res.message)}</span><br/><span class="muted">Muat ulang halaman ini untuk melihat data terbaru.</span>`;
+        resultBox.innerHTML = `<span style="color:var(--success);">${escapeHtml(res.message)}</span><br/><span class="muted">Muat ulang halaman ini untuk melihat data terbaru.</span>`;
         toast('Restore diterapkan, server sedang restart…', 'success');
       } catch (e) {
-        resultBox.innerHTML = `<span style="color:var(--red);">${escapeHtml(e.message)}</span>`;
+        resultBox.innerHTML = `<span style="color:var(--danger);">${escapeHtml(e.message)}</span>`;
       }
     });
 
@@ -206,11 +210,11 @@ const SettingsSection = {
       resetBtn.textContent = 'Menghapus…';
       try {
         const res = await api('/settings/reset-data', { method: 'POST', body: { confirm: resetInput.value.trim() } });
-        resultBox.innerHTML = `<span style="color:var(--green);">${escapeHtml(res.message)}</span>`;
+        resultBox.innerHTML = `<span style="color:var(--success);">${escapeHtml(res.message)}</span>`;
         toast('Semua data berhasil dihapus', 'success');
         resetInput.value = '';
       } catch (e) {
-        resultBox.innerHTML = `<span style="color:var(--red);">${escapeHtml(e.message)}</span>`;
+        resultBox.innerHTML = `<span style="color:var(--danger);">${escapeHtml(e.message)}</span>`;
       }
       resetBtn.textContent = 'Hapus Semua Data Sekarang';
     });

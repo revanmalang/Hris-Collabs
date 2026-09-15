@@ -21,19 +21,21 @@ const AuditLogSection = {
 
   async load() {
     const tbody = document.getElementById('al-body');
+    const loadSeq = (this._loadSeq = (this._loadSeq || 0) + 1);
     const { page, pageSize, action } = this.state;
     const params = new URLSearchParams({ page, pageSize });
     if (action) params.set('action', action);
     let res;
-    try { res = await api(`/audit-logs?${params}`); } catch (e) { tbody.innerHTML = `<tr><td colspan="6">${escapeHtml(e.message)}</td></tr>`; return; }
+    try { res = await api(`/audit-logs?${params}`); } catch (e) { if (loadSeq !== this._loadSeq) return; tbody.innerHTML = `<tr><td colspan="6">${escapeHtml(e.message)}</td></tr>`; return; }
+    if (loadSeq !== this._loadSeq) return;
     tbody.innerHTML = res.data.length ? res.data.map((r) => `
       <tr>
         <td>${fmtDateTime(r.created_at)}</td>
         <td>${escapeHtml(r.user_email || 'system')}</td>
         <td><span class="pill pill-working">${escapeHtml(r.action)}</span></td>
         <td class="small">${escapeHtml(r.object_type || '')} ${escapeHtml(r.object_id ? '#' + r.object_id.slice(0, 8) : '')}</td>
-        <td class="small">${escapeHtml(r.ip_address || '—')}</td>
-        <td class="small" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.device || '—')}</td>
+        <td class="small">${escapeHtml(r.ip_address || '-')}</td>
+        <td class="small" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.device || '-')}</td>
       </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">Tidak ada log</div></td></tr>`;
     const pagi = document.getElementById('al-pagination');
     pagi.innerHTML = '';

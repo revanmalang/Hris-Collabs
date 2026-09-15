@@ -25,6 +25,13 @@ async function api(path, opts = {}) {
       const data = await refreshRes.json();
       localStorage.setItem('accessToken', data.accessToken);
       res = await apiRaw(path, opts);
+    } else {
+      // Refresh token dead: stop retrying and send the user back to login
+      // instead of failing every subsequent request silently.
+      localStorage.removeItem('accessToken');
+      if (!window.location.pathname.endsWith('/index.html') && !window.location.pathname.endsWith('/reset-password.html')) {
+        window.location.href = '/index.html';
+      }
     }
   }
   let payload = null;
@@ -53,16 +60,16 @@ function toast(message, type = 'info') {
 }
 
 function fmtDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 function fmtTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
 function fmtDateTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return `${fmtDate(iso)} ${fmtTime(iso)}`;
 }
 function initials(name) {
@@ -71,6 +78,16 @@ function initials(name) {
 }
 function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+// URL allowlist for values rendered into src/href: relative paths plus
+// http/https/data-image/blob. Anything else (e.g. javascript:) is dropped.
+function safeUrl(url, allowDataImage = false) {
+  const s = String(url ?? '').trim();
+  if (s.startsWith('/')) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('blob:')) return s;
+  if (allowDataImage && s.startsWith('data:image/')) return s;
+  return '';
 }
 function debounce(fn, ms = 350) {
   let t;

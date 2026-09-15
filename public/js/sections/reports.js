@@ -1,7 +1,7 @@
 const ReportsSection = {
   kinds: [
-    ['attendance', 'Attendance Report'], ['late', 'Late Report'], ['absence', 'Absence Report'],
-    ['leave', 'Leave Report'], ['overtime', 'Overtime Report'], ['employee', 'Employee Report'], ['department', 'Department Report'],
+    ['attendance', 'Laporan Absensi'], ['late', 'Laporan Keterlambatan'], ['absence', 'Laporan Absen'],
+    ['leave', 'Laporan Izin dan Cuti'], ['overtime', 'Laporan Lembur'], ['employee', 'Laporan Karyawan'], ['department', 'Laporan Departemen'],
   ],
 
   async render(container) {
@@ -46,13 +46,15 @@ const ReportsSection = {
     document.getElementById('rep-preview').addEventListener('click', async () => {
       const kind = document.getElementById('rep-kind').value;
       const box = document.getElementById('rep-preview-body');
+      const reqSeq = (this._reqSeq = (this._reqSeq || 0) + 1);
       box.innerHTML = `<div class="empty-state">Memuat…</div>`;
       try {
         const res = await api(`/reports/${kind}?${buildParams({ format: 'json' })}`);
+        if (reqSeq !== this._reqSeq) return;
         if (!res.data.length) { box.innerHTML = `<div class="empty-state">Tidak ada data</div>`; return; }
         const cols = Object.keys(res.data[0]);
         box.innerHTML = `<table class="data-table"><thead><tr>${cols.map((c) => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
-          <tbody>${res.data.slice(0, 100).map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(r[c] ?? '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>
+          <tbody>${res.data.slice(0, 100).map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(r[c] ?? '-')}</td>`).join('')}</tr>`).join('')}</tbody></table>
           ${res.data.length > 100 ? `<div class="small muted" style="padding:10px;">Menampilkan 100 dari ${res.data.length} baris. Export untuk data lengkap.</div>` : ''}`;
       } catch (e) { box.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`; }
     });
@@ -71,14 +73,16 @@ const ReportsSection = {
     `;
     document.getElementById('pr-load').addEventListener('click', async () => {
       const box = document.getElementById('pr-body');
+      const reqSeq = (this._reqSeq = (this._reqSeq || 0) + 1);
       box.innerHTML = `<div class="empty-state">Memuat…</div>`;
       try {
         const res = await api(`/reports/payroll-prep/${document.getElementById('pr-month').value}`);
+        if (reqSeq !== this._reqSeq) return;
         box.innerHTML = `
           <table class="data-table">
             <thead><tr><th>Karyawan</th><th>Departemen</th><th>Hadir</th><th>Terlambat</th><th>Cuti</th><th>Sakit</th><th>Izin</th><th>Absen</th><th>Total Jam</th></tr></thead>
             <tbody>${res.data.map((r) => `<tr>
-              <td>${escapeHtml(r.employee_code)} · ${escapeHtml(r.full_name)}</td><td>${escapeHtml(r.department || '—')}</td>
+              <td>${escapeHtml(r.employee_code)} · ${escapeHtml(r.full_name)}</td><td>${escapeHtml(r.department || '-')}</td>
               <td>${r.days_present}</td><td>${r.days_late}</td><td>${r.days_leave}</td><td>${r.days_sick}</td><td>${r.days_permission}</td><td>${r.days_absent}</td>
               <td>${Number(r.total_worked_hours).toFixed(1)}</td>
             </tr>`).join('')}</tbody>

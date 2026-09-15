@@ -9,7 +9,7 @@ const LeaveSection = {
           <div class="tab" data-tab="calendar">Kalender Cuti</div>
         </div>
         <div style="margin-left:auto">
-          <button class="btn btn-amber btn-sm" id="new-leave">+ Ajukan Izin/Cuti</button>
+          <button class="btn btn-primary btn-sm" id="new-leave">Ajukan Izin/Cuti</button>
         </div>
       </div>
       <div id="leave-body"></div>
@@ -25,9 +25,11 @@ const LeaveSection = {
 
   async renderList(canReview) {
     const body = document.getElementById('leave-body');
+    const loadSeq = (this._loadSeq = (this._loadSeq || 0) + 1);
     body.innerHTML = `<div class="empty-state">Memuat…</div>`;
     let rows;
-    try { rows = await api('/leave'); } catch (e) { body.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`; return; }
+    try { rows = await api('/leave'); } catch (e) { if (loadSeq !== this._loadSeq) return; body.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`; return; }
+    if (loadSeq !== this._loadSeq) return;
     body.innerHTML = `
       <div class="card table-wrap">
         <table class="data-table">
@@ -36,12 +38,12 @@ const LeaveSection = {
             <tr>
               <td>${escapeHtml(r.full_name)}<div class="emp-sub">${escapeHtml(r.department_name || '')}</div></td>
               <td>${escapeHtml(r.type)}</td>
-              <td>${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}</td>
-              <td class="small">${escapeHtml(r.reason || '—')}</td>
+              <td>${fmtDate(r.start_date)} - ${fmtDate(r.end_date)}</td>
+              <td class="small">${escapeHtml(r.reason || '-')}</td>
               <td>${statusPill(r.status)}</td>
-              ${canReview ? `<td>${r.status === 'pending' ? `
-                <button class="btn btn-sm btn-outline" data-approve="${r.id}">Approve</button>
-                <button class="btn btn-sm btn-danger" data-reject="${r.id}">Reject</button>` : '—'}</td>` : ''}
+              ${canReview ? `<td>${r.status === 'pending' ? `<span class="row-actions">`
+                + `<button class="btn btn-sm btn-primary" data-approve="${r.id}">Setujui</button>`
+                + `<button class="btn btn-sm btn-danger-outline" data-reject="${r.id}">Tolak</button></span>` : '-'}</td>` : ''}
             </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">Belum ada pengajuan</div></td></tr>`}</tbody>
         </table>
       </div>`;
@@ -63,16 +65,18 @@ const LeaveSection = {
 
   async renderCalendar() {
     const body = document.getElementById('leave-body');
+    const loadSeq = (this._loadSeq = (this._loadSeq || 0) + 1);
     body.innerHTML = `<div class="empty-state">Memuat…</div>`;
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
     let rows;
-    try { rows = await api(`/leave/calendar?from=${from}&to=${to}`); } catch (e) { body.innerHTML = escapeHtml(e.message); return; }
+    try { rows = await api(`/leave/calendar?from=${from}&to=${to}`); } catch (e) { if (loadSeq !== this._loadSeq) return; body.innerHTML = escapeHtml(e.message); return; }
+    if (loadSeq !== this._loadSeq) return;
     body.innerHTML = `
       <div class="card">
         <div class="card-title">Yang sedang cuti bulan ini <span class="sub">${now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span></div>
-        ${rows.length ? rows.map((r) => rowLine(`${r.full_name} (${escapeHtml(r.department_name || '')})`, `${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}`, `<span class="pill pill-leave">${escapeHtml(r.type)}</span>`)).join('') : emptyLine('Tidak ada yang cuti bulan ini')}
+        ${rows.length ? rows.map((r) => rowLine(`${r.full_name} (${escapeHtml(r.department_name || '')})`, `${fmtDate(r.start_date)} - ${fmtDate(r.end_date)}`, `<span class="pill pill-leave">${escapeHtml(r.type)}</span>`)).join('') : emptyLine('Tidak ada yang cuti bulan ini')}
       </div>`;
   },
 
@@ -94,12 +98,12 @@ const LeaveSection = {
         <div class="field"><label>Alasan</label><textarea id="lv-reason" rows="3"></textarea></div>
         <div class="field"><label>Lampiran (opsional)</label><input type="file" id="lv-file" /></div>
       `,
-      footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="lv-submit">Ajukan</button>`,
+      footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="lv-submit">Ajukan</button>`,
       onMount: () => {
         document.getElementById('lv-submit').addEventListener('click', async () => {
           const start = document.getElementById('lv-start').value;
           const end = document.getElementById('lv-end').value;
-          if (!start || !end) return toast('Tanggal mulai & selesai wajib diisi', 'error');
+          if (!start || !end) return toast('Tanggal mulai dan selesai wajib diisi', 'error');
           const fd = new FormData();
           fd.append('type', document.getElementById('lv-type').value);
           fd.append('startDate', start);

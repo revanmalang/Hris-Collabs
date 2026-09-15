@@ -156,8 +156,8 @@ router.get(
          FROM employees e
          LEFT JOIN attendance a ON a.employee_id = e.id AND a.date LIKE CONCAT(@month, '%')
          LEFT JOIN departments d ON d.id = e.department_id
-         WHERE e.deleted_at IS NULL AND e.status = 'active'
-         GROUP BY e.id ORDER BY e.full_name`
+          WHERE e.deleted_at IS NULL AND e.status = 'active'
+          GROUP BY e.id, e.employee_code, e.full_name, d.name ORDER BY e.full_name`
       )
       .all({ month });
 

@@ -22,6 +22,7 @@ const OrgSection = {
 
   async renderTab(tab) {
     const body = document.getElementById('org-body');
+    this._tabSeq = (this._tabSeq || 0) + 1;
     body.innerHTML = `<div class="empty-state">Memuat…</div>`;
     if (tab === 'departments') return this.departments(body);
     if (tab === 'positions') return this.positions(body);
@@ -33,18 +34,20 @@ const OrgSection = {
   },
 
   async departments(body) {
+    const t = this._tabSeq;
     const rows = await api('/departments').catch(() => []);
+    if (t !== this._tabSeq || !document.getElementById('org-body')) return;
     body.innerHTML = `
-      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-amber btn-sm" id="add-dept">+ Tambah Departemen</button></div></div>
+      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-primary btn-sm" id="add-dept">Tambah Departemen</button></div></div>
       <div class="card table-wrap"><table class="data-table">
         <thead><tr><th>Nama</th><th>Manager</th><th>Jumlah Karyawan</th></tr></thead>
-        <tbody>${rows.map((d) => `<tr><td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.manager_name || '—')}</td><td>${d.employee_count}</td></tr>`).join('') || `<tr><td colspan="3"><div class="empty-state">Belum ada departemen</div></td></tr>`}</tbody>
+        <tbody>${rows.map((d) => `<tr><td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.manager_name || '-')}</td><td>${d.employee_count}</td></tr>`).join('') || `<tr><td colspan="3"><div class="empty-state">Belum ada departemen</div></td></tr>`}</tbody>
       </table></div>`;
     document.getElementById('add-dept').addEventListener('click', () => {
       openModal({
         title: 'Tambah Departemen',
         bodyHtml: `<div class="field"><label>Nama</label><input id="d-name" /></div><div class="field"><label>Deskripsi</label><input id="d-desc" /></div>`,
-        footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="d-save">Simpan</button>`,
+        footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="d-save">Simpan</button>`,
         onMount: () => document.getElementById('d-save').addEventListener('click', async () => {
           try {
             await api('/departments', { method: 'POST', body: { name: document.getElementById('d-name').value, description: document.getElementById('d-desc').value } });
@@ -56,19 +59,21 @@ const OrgSection = {
   },
 
   async positions(body) {
+    const t = this._tabSeq;
     const [rows, departments] = await Promise.all([api('/positions').catch(() => []), api('/departments').catch(() => [])]);
+    if (t !== this._tabSeq || !document.getElementById('org-body')) return;
     body.innerHTML = `
-      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-amber btn-sm" id="add-pos">+ Tambah Jabatan</button></div></div>
+      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-primary btn-sm" id="add-pos">Tambah Jabatan</button></div></div>
       <div class="card table-wrap"><table class="data-table">
         <thead><tr><th>Jabatan</th><th>Departemen</th></tr></thead>
-        <tbody>${rows.map((p) => `<tr><td>${escapeHtml(p.title)}</td><td>${escapeHtml(p.department_name || '—')}</td></tr>`).join('') || `<tr><td colspan="2"><div class="empty-state">Belum ada jabatan</div></td></tr>`}</tbody>
+        <tbody>${rows.map((p) => `<tr><td>${escapeHtml(p.title)}</td><td>${escapeHtml(p.department_name || '-')}</td></tr>`).join('') || `<tr><td colspan="2"><div class="empty-state">Belum ada jabatan</div></td></tr>`}</tbody>
       </table></div>`;
     document.getElementById('add-pos').addEventListener('click', () => {
       openModal({
         title: 'Tambah Jabatan',
         bodyHtml: `<div class="field"><label>Nama Jabatan</label><input id="p-title" /></div>
           <div class="field"><label>Departemen</label><select id="p-dept"><option value="">-</option>${departments.map((d) => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('')}</select></div>`,
-        footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="p-save">Simpan</button>`,
+        footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="p-save">Simpan</button>`,
         onMount: () => document.getElementById('p-save').addEventListener('click', async () => {
           try {
             await api('/positions', { method: 'POST', body: { title: document.getElementById('p-title').value, departmentId: document.getElementById('p-dept').value || null } });
@@ -80,12 +85,14 @@ const OrgSection = {
   },
 
   async locations(body) {
+    const t = this._tabSeq;
     const rows = await api('/locations').catch(() => []);
+    if (t !== this._tabSeq || !document.getElementById('org-body')) return;
     body.innerHTML = `
-      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-amber btn-sm" id="add-loc">+ Tambah Lokasi</button></div></div>
+      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-primary btn-sm" id="add-loc">Tambah Lokasi</button></div></div>
       <div class="card table-wrap"><table class="data-table">
         <thead><tr><th>Nama</th><th>Alamat</th><th>Koordinat</th><th>Radius Geofence</th></tr></thead>
-        <tbody>${rows.map((l) => `<tr><td>${escapeHtml(l.name)}</td><td>${escapeHtml(l.address || '—')}</td><td class="small">${l.latitude}, ${l.longitude}</td><td>${l.radius_meters} m</td></tr>`).join('') || `<tr><td colspan="4"><div class="empty-state">Belum ada lokasi</div></td></tr>`}</tbody>
+        <tbody>${rows.map((l) => `<tr><td>${escapeHtml(l.name)}</td><td>${escapeHtml(l.address || '-')}</td><td class="small">${l.latitude}, ${l.longitude}</td><td>${l.radius_meters} m</td></tr>`).join('') || `<tr><td colspan="4"><div class="empty-state">Belum ada lokasi</div></td></tr>`}</tbody>
       </table></div>`;
     document.getElementById('add-loc').addEventListener('click', () => {
       openModal({
@@ -100,7 +107,7 @@ const OrgSection = {
           <div class="field"><label>Radius Geofence (meter)</label><input id="l-radius" type="number" value="100" /></div>
           <p class="small muted">Tip: buka Google Maps, klik kanan lokasi kantor untuk menyalin koordinat.</p>
         `,
-        footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="l-save">Simpan</button>`,
+        footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="l-save">Simpan</button>`,
         onMount: () => document.getElementById('l-save').addEventListener('click', async () => {
           try {
             await api('/locations', { method: 'POST', body: {
@@ -118,12 +125,14 @@ const OrgSection = {
   },
 
   async shifts(body) {
+    const t = this._tabSeq;
     const [rows, employees] = await Promise.all([api('/shifts').catch(() => []), api('/employees?pageSize=100').catch(() => ({ data: [] }))]);
+    if (t !== this._tabSeq || !document.getElementById('org-body')) return;
     body.innerHTML = `
-      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-amber btn-sm" id="add-shift">+ Tambah Shift</button></div></div>
+      <div class="toolbar"><div style="margin-left:auto"><button class="btn btn-primary btn-sm" id="add-shift">Tambah Shift</button></div></div>
       <div class="card table-wrap"><table class="data-table">
         <thead><tr><th>Nama Shift</th><th>Jam Kerja</th><th>Grace Period</th><th>Aksi</th></tr></thead>
-        <tbody>${rows.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${s.start_time}–${s.end_time}</td><td>${s.grace_period_minutes} menit</td>
+        <tbody>${rows.map((s) => `<tr><td>${escapeHtml(s.name)}</td><td>${s.start_time}-${s.end_time}</td><td>${s.grace_period_minutes} menit</td>
           <td><button class="btn btn-sm btn-outline" data-assign="${s.id}">Assign Karyawan</button></td></tr>`).join('') || `<tr><td colspan="4"><div class="empty-state">Belum ada shift</div></td></tr>`}</tbody>
       </table></div>`;
     document.getElementById('add-shift').addEventListener('click', () => {
@@ -132,7 +141,7 @@ const OrgSection = {
         bodyHtml: `<div class="field"><label>Nama Shift</label><input id="s-name" /></div>
           <div class="form-grid"><div class="field"><label>Jam Mulai</label><input type="time" id="s-start" /></div><div class="field"><label>Jam Selesai</label><input type="time" id="s-end" /></div></div>
           <div class="field"><label>Grace Period (menit)</label><input id="s-grace" type="number" value="15" /></div>`,
-        footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="s-save">Simpan</button>`,
+        footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="s-save">Simpan</button>`,
         onMount: () => document.getElementById('s-save').addEventListener('click', async () => {
           try {
             await api('/shifts', { method: 'POST', body: { name: document.getElementById('s-name').value, startTime: document.getElementById('s-start').value, endTime: document.getElementById('s-end').value, gracePeriodMinutes: Number(document.getElementById('s-grace').value) } });
@@ -149,7 +158,7 @@ const OrgSection = {
           <div style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;">
             ${employees.data.map((e) => `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;"><input type="checkbox" value="${e.id}" class="assign-chk" /> ${escapeHtml(e.full_name)} <span class="muted small">(${escapeHtml(e.employee_code)})</span></label>`).join('')}
           </div>`,
-        footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="assign-save">Assign</button>`,
+        footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="assign-save">Assign</button>`,
         onMount: () => document.getElementById('assign-save').addEventListener('click', async () => {
           const ids = Array.from(document.querySelectorAll('.assign-chk:checked')).map((c) => c.value);
           if (!ids.length) return toast('Pilih minimal satu karyawan', 'error');
@@ -163,10 +172,12 @@ const OrgSection = {
   },
 
   async schedule(body) {
+    const t = this._tabSeq;
     const [shifts, employees] = await Promise.all([
       api('/shifts').catch(() => []),
       api('/employees?pageSize=100').catch(() => ({ data: [] })),
     ]);
+    if (t !== this._tabSeq || !document.getElementById('org-body')) return;
     const today = new Date();
     const monday = new Date(today);
     monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
@@ -191,7 +202,7 @@ const OrgSection = {
             </div>
           </div>
           <div class="small muted" style="margin-bottom:10px;">Akhir pekan (Sab/Min) dilewati otomatis.</div>
-          <button class="btn btn-amber btn-sm" id="sc-apply">Terapkan Jadwal</button>
+          <button class="btn btn-primary btn-sm" id="sc-apply">Terapkan Jadwal</button>
         </div>
         <div class="card">
           <div class="card-title">Pratinjau Minggu Ini <span class="sub" id="sc-range-label"></span></div>
@@ -203,7 +214,7 @@ const OrgSection = {
     const loadPreview = async () => {
       const from = document.getElementById('sc-from').value || weekDates[0];
       const to = document.getElementById('sc-to').value || weekDates[6];
-      document.getElementById('sc-range-label').textContent = `${fmtDate(from)} – ${fmtDate(to)}`;
+      document.getElementById('sc-range-label').textContent = `${fmtDate(from)} - ${fmtDate(to)}`;
       const rows = await api(`/schedules?from=${from}&to=${to}`).catch(() => []);
       const box = document.getElementById('sc-preview');
       box.innerHTML = rows.length
@@ -235,12 +246,14 @@ const OrgSection = {
   },
 
   async rotation(body) {
+    const t = this._tabSeq;
     const [shifts, employees, rotations, assignments] = await Promise.all([
       api('/shifts').catch(() => []),
       api('/employees?pageSize=100').catch(() => ({ data: [] })),
       api('/shift-rotations').catch(() => []),
       api('/shift-rotations/assignments').catch(() => []),
     ]);
+    if (t !== this._tabSeq || !document.getElementById('org-body')) return;
 
     body.innerHTML = `
       <div class="grid grid-2">
@@ -248,10 +261,10 @@ const OrgSection = {
           <div class="card-title">Pola Rotasi <span class="sub">Contoh: kerja-kerja-libur berulang</span></div>
           <div id="rot-list">${rotations.length ? rotations.map((r) => `
             <div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border);">
-              <div><strong style="font-size:13px;">${escapeHtml(r.name)}</strong><div class="small muted">${r.pattern.length} hari siklus: ${r.pattern.map((s) => s ? (shifts.find(sh => sh.id === s)?.name || '?') : 'Libur').join(' → ')}</div></div>
+              <div><strong style="font-size:13px;">${escapeHtml(r.name)}</strong><div class="small muted">${r.pattern.length} hari siklus: ${escapeHtml(r.pattern.map((s) => s ? (shifts.find(sh => sh.id === s)?.name || '?') : 'Libur').join(' - '))}</div></div>
               <button class="btn btn-sm btn-danger" data-del-rot="${r.id}">Hapus</button>
             </div>`).join('') : emptyLine('Belum ada pola rotasi')}</div>
-          <button class="btn btn-amber btn-sm mt-16" id="add-rotation">+ Buat Pola Rotasi</button>
+          <button class="btn btn-primary btn-sm mt-16" id="add-rotation">Buat Pola Rotasi</button>
         </div>
         <div class="card">
           <div class="card-title">Assign Karyawan ke Rotasi</div>
@@ -293,16 +306,16 @@ const OrgSection = {
           <div class="field"><label>Nama Pola</label><input id="rp-name" placeholder="Contoh: 2 Kerja 1 Libur" /></div>
           <div class="field"><label>Urutan Siklus (pisahkan koma, gunakan nama shift atau "Libur")</label>
             <select id="rp-day-shift" style="margin-bottom:8px;">${shifts.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}<option value="">Libur</option></select>
-            <button type="button" class="btn btn-outline btn-sm" id="rp-add-day">+ Tambah ke Pola</button>
+            <button type="button" class="btn btn-outline btn-sm" id="rp-add-day">Tambah ke Pola</button>
           </div>
-          <div id="rp-pattern-preview" class="small" style="padding:10px;background:var(--gray-100);border-radius:6px;min-height:20px;">Pola: (kosong)</div>
+          <div id="rp-pattern-preview" class="small" style="padding:10px;background:var(--neutral-soft);border-radius:6px;min-height:20px;">Pola: (kosong)</div>
         `,
-        footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="rp-save">Simpan Pola</button>`,
+        footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="rp-save">Simpan Pola</button>`,
         onMount: () => {
           const pattern = [];
           const renderPreview = () => {
             document.getElementById('rp-pattern-preview').textContent = pattern.length
-              ? `Pola (${pattern.length} hari): ${pattern.map((s) => s ? (shifts.find(sh => sh.id === s)?.name || '?') : 'Libur').join(' → ')}`
+              ? `Pola (${pattern.length} hari): ${pattern.map((s) => s ? (shifts.find(sh => sh.id === s)?.name || '?') : 'Libur').join(' - ')}`
               : 'Pola: (kosong)';
           };
           document.getElementById('rp-add-day').addEventListener('click', () => {
@@ -349,13 +362,15 @@ const OrgSection = {
           method: 'POST',
           body: { from: document.getElementById('rot-gen-from').value, to: document.getElementById('rot-gen-to').value },
         });
-        document.getElementById('rot-gen-result').innerHTML = `<span style="color:var(--green);">✓ ${res.scheduleEntriesWritten} jadwal dibuat, ${res.daysOff} hari libur, untuk ${res.employeesAffected} karyawan.</span>`;
+        document.getElementById('rot-gen-result').innerHTML = `<span style="color:var(--success);">${res.scheduleEntriesWritten} jadwal dibuat, ${res.daysOff} hari libur, untuk ${res.employeesAffected} karyawan.</span>`;
       } catch (e) { toast(e.message, 'error'); }
     });
   },
 
   async orgChart(body) {
+    const t = this._tabSeq;
     const rows = await api('/org-chart').catch(() => []);
+    if (t !== this._tabSeq || !document.getElementById('org-body')) return;
     const byManager = {};
     rows.forEach((e) => { const key = e.manager_id || 'root'; (byManager[key] = byManager[key] || []).push(e); });
     const renderNode = (e) => `

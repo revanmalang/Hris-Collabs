@@ -2,12 +2,15 @@ const AnnouncementsSection = {
   async render(container, { user }) {
     const canCreate = can('announcements.manage');
     container.innerHTML = `
-      <div class="toolbar">${canCreate ? `<div style="margin-left:auto"><button class="btn btn-amber btn-sm" id="add-ann">+ Buat Pengumuman</button></div>` : ''}</div>
+      <div class="toolbar">${canCreate ? `<div style="margin-left:auto"><button class="btn btn-primary btn-sm" id="add-ann">Buat Pengumuman</button></div>` : ''}</div>
       <div id="ann-body"><div class="empty-state">Memuat…</div></div>
     `;
     canCreate && document.getElementById('add-ann').addEventListener('click', () => this.openForm());
+    // Re-register cleanly: render() runs on every visit, guard against duplicates.
+    window.removeEventListener('hris:announcement', this._listener);
+    this._listener = () => this.load(canCreate);
+    window.addEventListener('hris:announcement', this._listener);
     this.load(canCreate);
-    window.addEventListener('hris:announcement', () => this.load(canCreate));
   },
 
   async load(canCreate) {
@@ -17,11 +20,11 @@ const AnnouncementsSection = {
     try { rows = await api('/announcements'); } catch (e) { body.innerHTML = escapeHtml(e.message); return; }
     body.innerHTML = rows.length ? `<div class="grid grid-2">${rows.map((a) => `
       <div class="card">
-        ${a.image_url ? `<img src="${a.image_url}" style="width:100%;border-radius:8px;margin-bottom:10px;" />` : ''}
+        ${a.image_url && safeUrl(a.image_url) ? `<img src="${escapeHtml(safeUrl(a.image_url))}" style="width:100%;border-radius:8px;margin-bottom:10px;" />` : ''}
         <div class="flex-between"><strong>${escapeHtml(a.title)}</strong>${canCreate ? `<button class="btn btn-sm btn-danger" data-del="${a.id}">Hapus</button>` : ''}</div>
-        <p class="small" style="color:var(--ink-muted)">${escapeHtml(a.content)}</p>
+        <p class="small" style="color:var(--muted)">${escapeHtml(a.content)}</p>
         <div class="small muted">${fmtDateTime(a.publish_at)}${a.target_department_name ? ` · ${escapeHtml(a.target_department_name)}` : ''}</div>
-      </div>`).join('')}</div>` : `<div class="empty-state"><div class="ic">📣</div>Belum ada pengumuman</div>`;
+      </div>`).join('')}</div>` : emptyState('Belum ada pengumuman', 'Pengumuman baru akan tampil di sini.');
     body.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
       const ok = await confirmDialog('Hapus pengumuman ini?');
       if (!ok) return;
@@ -43,7 +46,7 @@ const AnnouncementsSection = {
         </div>
         <div class="field"><label>Kedaluwarsa (opsional)</label><input type="date" id="a-expiry" /></div>
       `,
-      footHtml: `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="a-save">Publikasikan</button>`,
+      footHtml: `<button class="btn btn-outline" data-close-modal>Batal</button><button class="btn btn-primary" id="a-save">Publikasikan</button>`,
       onMount: () => document.getElementById('a-save').addEventListener('click', async () => {
         const fd = new FormData();
         fd.append('title', document.getElementById('a-title').value);
