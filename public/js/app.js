@@ -111,11 +111,12 @@ function renderUserChip() {
              <button class="btn btn-outline btn-sm" id="start-2fa">Aktifkan 2FA</button>
              <div id="twofa-setup-body"></div>`
         }</div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0" />
+        <button class="btn btn-danger-outline btn-block" id="do-logout">Keluar dari sesi ini</button>
       `,
       footHtml: `
         <button class="btn btn-outline" data-close-modal>Tutup</button>
-        <button class="btn btn-primary" id="save-pw">Simpan Kata Sandi</button>
-        <button class="btn btn-danger" id="do-logout">Keluar</button>`,
+        <button class="btn btn-primary" id="save-pw">Simpan Kata Sandi</button>`,
       onMount: () => {
         document.getElementById('do-logout').addEventListener('click', async () => {
           await api('/auth/logout', { method: 'POST' }).catch(() => {});
